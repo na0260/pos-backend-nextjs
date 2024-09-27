@@ -36,3 +36,4 @@ yarn-error.log*
 next-env.d.ts
 /prisma/migrations/20240927200852_database_migration/migration.sql
 /prisma/migrations/migration_lock.toml
+/prisma/migrations/20240927210345_password_field_updated/migration.sql
