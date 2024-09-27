@@ -1,5 +1,5 @@
 import {NextResponse} from "next/server";
-import {verifyToken} from "./utility/JWTHelper";
+import {verifyToken} from "@/utility/JWTHelper";
 
 export async function middleware(req){
     if (req.nextUrl.pathname.startsWith('/api/v1/dashboard')){
