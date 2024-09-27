@@ -1,6 +1,7 @@
 import {NextResponse} from "next/server";
 import {PrismaClient} from "@prisma/client";
 import {SendEmail} from "@/utility/EmailUtility";
+import bcrypt from "bcrypt";
 
 export async function GET(req){
     try {
@@ -33,6 +34,64 @@ export async function GET(req){
             }
         }else {
             return NextResponse.json({status: "Failed", data: "User not found"}, {status: 404});
+        }
+    }catch (e) {
+        return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
+    }
+}
+
+export async function POST(req){
+    try {
+        const reqBody = await req.json();
+        const prisma = new PrismaClient();
+        const user = await prisma.users.findUnique({
+            where: {
+                email: reqBody.email
+            }
+        });
+        if (!user){
+            return NextResponse.json({status: "Failed", data: "User not found"}, {status: 404});
+        }else {
+            if (user.otp === reqBody.otp){
+                return NextResponse.json({status: "Success", data: "OTP Verified"}, {status: 200});
+            }else {
+                return NextResponse.json({status: "Failed", data: "Invalid OTP"}, {status: 400});
+            }
+        }
+    }catch (e) {
+        return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
+    }
+}
+
+export async function PUT(req){
+    try {
+        const reqBody = await req.json();
+        const prisma = new PrismaClient();
+        const user = await prisma.users.findUnique({
+            where: {
+                email: reqBody.email
+            }
+        });
+        if (!user){
+            return NextResponse.json({status: "Failed", data: "User not found"}, {status: 404});
+        }else {
+            if (user.otp === reqBody.otp) {
+                const newOtp = Math.floor(100000 + Math.random() * 900000);
+                let password = reqBody.password;
+                const hashedPassword = await bcrypt.hash(password, 10);
+                await prisma.users.update({
+                    where: {
+                        email: reqBody.email
+                    },
+                    data: {
+                        password: hashedPassword,
+                        otp: newOtp.toString()
+                    }
+                });
+                return NextResponse.json({status: "Success", data: "Password Reset Successful"}, {status: 200});
+            }else {
+                return NextResponse.json({status: "Failed", data: "Invalid OTP"}, {status: 400});
+            }
         }
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
