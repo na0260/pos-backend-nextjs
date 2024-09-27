@@ -19,7 +19,7 @@ model users {
   lastName  String @db.VarChar(50)
   email     String @unique @db.VarChar(50)
   mobile    String @db.VarChar(50)
-  password  String @db.VarChar(50)
+  password  String @db.VarChar(255)
   otp       String @db.VarChar(10)
 
   categories       categories[]
