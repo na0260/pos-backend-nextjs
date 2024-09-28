@@ -38,13 +38,29 @@ export async function POST(req){
     }
 }
 
-export async function PUT(){
+export async function PUT(req){
 
 }
 
 export async function PATCH(){
 
 }
-export async function DELETE(){
+export async function DELETE(req){
+    try {
+        const headerList = headers();
+        const id = headerList.get("id");
+        const {searchParams} = new URL(req.url);
+        const categoryId = searchParams.get("cat_id");
+        const prisma = new PrismaClient();
+        const result = await prisma.categories.delete({
+            where:{
+                id: parseInt(categoryId),
+                user_id: parseInt(id)
+            }
+        })
 
+        return NextResponse.json({status: "Success", data: result}, {status: 200});
+    }catch (e) {
+        return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
+    }
 }
