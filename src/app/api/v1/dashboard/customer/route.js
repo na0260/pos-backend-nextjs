@@ -74,7 +74,11 @@ export async function PATCH(req){
             }
         })
 
-        return NextResponse.json({status: "Success", data: result}, {status: 200});
+        if (!result){
+            return NextResponse.json({status: "Failed", data: "Customer not found"}, {status: 404});
+        }else {
+            return NextResponse.json({status: "Success", data: result}, {status: 200});
+        }
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
     }
