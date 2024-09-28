@@ -116,9 +116,31 @@ export async function PATCH(req){
             }
         });
 
+        if (!result) {
+            return NextResponse.json({status: "Failed", data: "Product not found"}, {status: 404});
+        }else {
+            return NextResponse.json({status: "Success", data: result}, {status: 200});
+        }
+    }catch (e) {
+        return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
+    }
+}
+export async function DELETE(req){
+    try {
+        const headerList = headers();
+        const id = headerList.get("id");
+        const {searchParams} = new URL(req.url);
+        const productId = searchParams.get("pro_id");
+        const prisma = new PrismaClient();
+        const result = await prisma.products.delete({
+            where:{
+                id: parseInt(productId),
+                user_id: parseInt(id)
+            }
+        });
+
         return NextResponse.json({status: "Success", data: result}, {status: 200});
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
     }
 }
-
