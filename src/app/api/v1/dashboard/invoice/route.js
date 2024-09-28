@@ -184,3 +184,66 @@ export async function PUT(req){
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
     }
 }
+
+export async function DELETE(req){
+    try {
+        const headerList = headers();
+        const id = headerList.get("id");
+        const {searchParams} = new URL(req.url);
+        const invoice_id = searchParams.get("inv_id");
+        const prisma = new PrismaClient();
+        const invoice = await prisma.invoices.findUnique({
+            where: {
+                id: parseInt(invoice_id),
+                user_id: parseInt(id)
+            }
+        });
+        if (!invoice) {
+            return NextResponse.json({status: "Failed", data: "Invoice not found"}, {status: 404});
+        }else {
+            const invoiceProduct = await prisma.invoice_products.findFirst({
+                where: {
+                    invoice_id: parseInt(invoice_id),
+                    user_id: parseInt(id)
+                }
+            });
+            const product = await prisma.products.findUnique({
+                where: {
+                    id: invoiceProduct['product_id'],
+                    user_id: parseInt(id)
+                }
+            });
+            const totalProduct = parseInt(product['unit']) + parseInt(invoiceProduct['qty'])
+            const result = await prisma.$transaction(async (prisma)=>{
+                const deleteInvoiceProduct = await prisma.invoice_products.delete({
+                    where: {
+                        id: invoiceProduct['id'],
+                        invoice_id: parseInt(invoice_id),
+                        user_id: parseInt(id)
+                    }
+                });
+                const deleteInvoice = await prisma.invoices.delete({
+                        where: {
+                            id: parseInt(invoice_id),
+                            user_id: parseInt(id)
+                        }
+                });
+                const updateProduct = await prisma.products.update({
+                        where: {
+                            id: product['id'],
+                            user_id: parseInt(id)
+                        },
+                        data: {
+                            unit: totalProduct.toString()
+                        }
+                });
+
+                return {deleteInvoiceProduct, deleteInvoice, updateProduct};
+            })
+
+            return NextResponse.json({status: "Success", data: result}, {status: 200});
+        }
+    }catch (e) {
+        return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
+    }
+}
