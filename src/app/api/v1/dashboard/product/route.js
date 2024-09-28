@@ -101,3 +101,24 @@ export async function PUT(req){
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
     }
 }
+
+export async function PATCH(req){
+    try {
+        const headerList = headers();
+        const id = headerList.get("id");
+        const {searchParams} = new URL(req.url);
+        const productId = searchParams.get("pro_id");
+        const prisma = new PrismaClient();
+        const result = await prisma.products.findUnique({
+            where:{
+                id: parseInt(productId),
+                user_id: parseInt(id)
+            }
+        });
+
+        return NextResponse.json({status: "Success", data: result}, {status: 200});
+    }catch (e) {
+        return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
+    }
+}
+
