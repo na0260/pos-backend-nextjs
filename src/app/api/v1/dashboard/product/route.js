@@ -68,3 +68,36 @@ export async function POST(req){
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
     }
 }
+
+export async function PUT(req){
+    try {
+        const headerList = headers();
+        const id = headerList.get("id");
+        const reqBody = await req.json();
+        reqBody.user_id = parseInt(id);
+        const {searchParams} = new URL(req.url);
+        const productId = searchParams.get("pro_id");
+        const prisma = new PrismaClient();
+        const category = await prisma.categories.findUnique({
+            where:{
+                id: reqBody.category_id,
+                user_id: parseInt(id)
+            }
+        });
+        if (!category){
+            return NextResponse.json({status: "Failed", data: "Category not found"}, {status: 404});
+        }else {
+            const result = await prisma.products.update({
+                where:{
+                    id: parseInt(productId),
+                    user_id: parseInt(id)
+                },
+                data: reqBody
+            });
+
+            return NextResponse.json({status: "Success", data: result}, {status: 200});
+        }
+    }catch (e) {
+        return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
+    }
+}
