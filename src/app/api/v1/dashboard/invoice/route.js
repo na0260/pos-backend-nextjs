@@ -2,7 +2,45 @@ import {NextResponse} from "next/server";
 import {headers} from "next/headers";
 import {PrismaClient} from "@prisma/client";
 
-export async function POST(req){
+export async function GET() {
+    try {
+        const headerList = headers();
+        const id = headerList.get("id");
+        const prisma = new PrismaClient();
+        const result = await prisma.invoices.findMany({
+            where: {
+                user_id: parseInt(id)
+            },
+            select: {
+                id: true,
+                total: true,
+                discount: true,
+                vat: true,
+                payable: true,
+                customer_id: true,
+                invoice_products: {
+                    select: {
+                        qty: true,
+                        products: {
+                            select: {
+                                name: true,
+                                unit: true,
+                                price: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        return NextResponse.json({status: "Success", data: result}, {status: 200});
+
+    } catch (e) {
+        return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
+    }
+}
+
+export async function POST(req) {
     try {
         const headerList = headers();
         const id = headerList.get("id");
@@ -17,47 +55,49 @@ export async function POST(req){
             }
         });
 
-        if (!customer){
+        if (!customer) {
             return NextResponse.json({status: "Failed", data: "Customer not found"}, {status: 404});
-        }else {
+        } else {
             const product = await prisma.products.findUnique({
                 where: {
                     id: reqBody.product_id,
                     user_id: reqBody.user_id
                 }
             });
-            if (!product){
+            if (!product) {
                 return NextResponse.json({status: "Failed", data: "Product not found"}, {status: 404});
-            }else {
-                if (parseInt(product['unit']) <= parseInt(reqBody.qty)){
-                    return NextResponse.json({status: "Failed", data: `Not enough products. Remaining = ${product['unit']}`}, {status: 400});
-                }else {
+            } else {
+                if (parseInt(product['unit']) <= parseInt(reqBody.qty)) {
+                    return NextResponse.json({
+                        status: "Failed",
+                        data: `Not enough products. Remaining = ${product['unit']}`
+                    }, {status: 400});
+                } else {
                     const total = parseInt(reqBody.qty) * parseInt(product['price']);
                     const discount = total * parseInt(reqBody.discount) / 100;
                     const vat = total * parseInt(reqBody.vat) / 100;
                     const payable = (total - discount) + vat;
                     const remaining = parseInt(product['unit']) - parseInt(reqBody.qty);
-                    const result = await prisma.$transaction(async (prisma) =>{
-                        const invoice = await prisma.invoices.create({
+                    const result = await prisma.$transaction([
+                        prisma.invoices.create({
                             data: {
                                 total: total.toString(),
                                 discount: discount.toString(),
                                 vat: vat.toString(),
                                 payable: payable.toString(),
                                 customer_id: reqBody.customer_id,
-                                user_id: reqBody.user_id
-                            }
-                        });
-                        const invoiceProducts = await prisma.invoice_products.create({
-                            data:{
-                                qty: reqBody.qty,
-                                sale_price: product['price'],
                                 user_id: reqBody.user_id,
-                                product_id: reqBody.product_id,
-                                invoice_id: invoice.id
+                                invoice_products: {
+                                    create: {
+                                        qty: reqBody.qty,
+                                        sale_price: product['price'],
+                                        product_id: reqBody.product_id,
+                                        user_id: reqBody.user_id
+                                    }
+                                }
                             }
-                        })
-                        const updateProduct = await prisma.products.update({
+                        }),
+                        prisma.products.update({
                             where: {
                                 id: reqBody.product_id,
                                 user_id: reqBody.user_id
@@ -65,21 +105,19 @@ export async function POST(req){
                             data: {
                                 unit: remaining.toString()
                             }
-                        });
-                        return {invoice, invoiceProducts, updateProduct};
-                    });
-
+                        })
+                    ]);
 
                     return NextResponse.json({status: "Success", data: result}, {status: 201});
                 }
             }
         }
-    }catch (e) {
+    } catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
     }
 }
 
-export async function PUT(req){
+export async function PUT(req) {
     try {
         const headerList = headers();
         const id = headerList.get("id");
@@ -95,9 +133,9 @@ export async function PUT(req){
             }
         });
 
-        if (!invoice){
+        if (!invoice) {
             return NextResponse.json({status: "Failed", data: "Invoice not found"}, {status: 404});
-        }else {
+        } else {
             const customer = await prisma.customers.findUnique({
                 where: {
                     id: reqBody.customer_id,
@@ -105,38 +143,43 @@ export async function PUT(req){
                 }
             });
 
-            if (!customer){
+            if (!customer) {
                 return NextResponse.json({status: "Failed", data: "Customer not found"}, {status: 404});
-            }else {
+            } else {
                 const product = await prisma.products.findUnique({
                     where: {
                         id: reqBody.product_id,
                         user_id: reqBody.user_id
                     }
                 });
-                if (!product){
+                if (!product) {
                     return NextResponse.json({status: "Failed", data: "Product not found"}, {status: 404});
-                }else {
+                } else {
                     const invoiceProduct = await prisma.invoice_products.findFirst({
                         where: {
                             invoice_id: parseInt(invoice_id),
                             user_id: reqBody.user_id
                         }
                     });
-                    if (invoiceProduct['product_id'] !== reqBody.product_id){
-                        return NextResponse.json({status: "Failed", data: "Product not matched in invoice"}, {status: 404});
+                    let count = 0;
+                    if (invoiceProduct['product_id'] !== reqBody.product_id) {
+                        count = parseInt(product['unit']);
                     }else {
-                        const totalProduct = parseInt(product['unit']) + parseInt(invoiceProduct['qty'])
-                        if ( totalProduct <= parseInt(reqBody.qty)){
-                            return NextResponse.json({status: "Failed", data: `Not enough products. Remaining = ${totalProduct}`}, {status: 400});
-                        }else {
-                            const total = parseInt(reqBody.qty) * parseInt(product['price']);
-                            const discount = total * parseInt(reqBody.discount) / 100;
-                            const vat = total * parseInt(reqBody.vat) / 100;
-                            const payable = (total - discount) + vat;
-                            const remaining = totalProduct - parseInt(reqBody.qty);
-                            const result = await prisma.$transaction(async (prisma) =>{
-                                const invoice = await prisma.invoices.update({
+                        count = parseInt(invoiceProduct['qty']) + parseInt(product['unit']);
+                    }
+                    if (reqBody.qty > count) {
+                        return NextResponse.json({
+                            status: "Failed",
+                            data: `Not enough products. Remaining = ${product['unit']}`
+                        }, {status: 400});
+                    } else {
+                        const total = parseInt(reqBody.qty) * parseInt(product['price']);
+                        const discount = total * parseInt(reqBody.discount) / 100;
+                        const vat = total * parseInt(reqBody.vat) / 100;
+                        const payable = (total - discount) + vat;
+
+                        const result = await prisma.$transaction(async (prisma) => {
+                            const updateInvoice = await prisma.invoices.update({
                                     where: {
                                         id: parseInt(invoice_id),
                                         user_id: reqBody.user_id
@@ -147,21 +190,27 @@ export async function PUT(req){
                                         vat: vat.toString(),
                                         payable: payable.toString(),
                                         customer_id: reqBody.customer_id,
+                                        invoice_products: {
+                                            update: {
+                                                where: {
+                                                    id: invoiceProduct['id'],
+                                                    invoice_id: parseInt(invoice_id),
+                                                    user_id: reqBody.user_id
+                                                },
+                                                data: {
+                                                    qty: reqBody.qty,
+                                                    sale_price: product['price'],
+                                                    product_id: reqBody.product_id,
+                                                }
+                                            }
+                                        }
                                     }
                                 });
-                                const invoiceProducts = await prisma.invoice_products.update({
-                                    where:{
-                                        id: invoiceProduct['id'],
-                                        invoice_id: parseInt(invoice_id),
-                                        user_id: reqBody.user_id
-                                    },
-                                    data:{
-                                        qty: reqBody.qty,
-                                        sale_price: product['price'],
-                                        product_id: reqBody.product_id,
-                                    }
-                                })
-                                const updateProduct = await prisma.products.update({
+                            let updateProduct;
+                            if (invoiceProduct['product_id'] === reqBody.product_id) {
+                                const totalProduct = parseInt(product['unit']) + parseInt(invoiceProduct['qty'])
+                                const remaining = totalProduct - parseInt(reqBody.qty);
+                                updateProduct = await prisma.products.update({
                                     where: {
                                         id: reqBody.product_id,
                                         user_id: reqBody.user_id
@@ -170,22 +219,51 @@ export async function PUT(req){
                                         unit: remaining.toString()
                                     }
                                 });
-                                return {invoice, invoiceProducts, updateProduct};
-                            });
-                            return NextResponse.json({status: "Success", data: result}, {status: 200});
-                        }
+                            } else {
+                                const totalProduct = parseInt(product['unit']);
+                                const remaining = totalProduct - parseInt(reqBody.qty);
+                                const prevProduct = await prisma.products.findUnique({
+                                    where: {
+                                        id: invoiceProduct['product_id'],
+                                        user_id: reqBody.user_id
+                                    }
+                                });
+                                const prevTotalProduct = parseInt(prevProduct['unit']) + parseInt(invoiceProduct['qty'])
+                                updateProduct = await Promise.all([
+                                    prisma.products.update({
+                                        where: {
+                                            id: invoiceProduct['product_id'],
+                                            user_id: reqBody.user_id
+                                        },
+                                        data: {
+                                            unit: prevTotalProduct.toString()
+                                        }
+                                    }),
+                                    prisma.products.update({
+                                        where: {
+                                            id: reqBody.product_id,
+                                            user_id: reqBody.user_id
+                                        },
+                                        data: {
+                                            unit: remaining.toString()
+                                        }
+                                    })
+                                ]);
+                            }
+                            return {updateInvoice, updateProduct};
+                        });
+
+                        return NextResponse.json({status: "Success", data: result}, {status: 200});
                     }
                 }
             }
         }
-
-
-    }catch (e) {
+    } catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
     }
 }
 
-export async function DELETE(req){
+export async function DELETE(req) {
     try {
         const headerList = headers();
         const id = headerList.get("id");
@@ -200,7 +278,7 @@ export async function DELETE(req){
         });
         if (!invoice) {
             return NextResponse.json({status: "Failed", data: "Invoice not found"}, {status: 404});
-        }else {
+        } else {
             const invoiceProduct = await prisma.invoice_products.findFirst({
                 where: {
                     invoice_id: parseInt(invoice_id),
@@ -214,7 +292,7 @@ export async function DELETE(req){
                 }
             });
             const totalProduct = parseInt(product['unit']) + parseInt(invoiceProduct['qty'])
-            const result = await prisma.$transaction(async (prisma)=>{
+            const result = await prisma.$transaction(async (prisma) => {
                 const deleteInvoiceProduct = await prisma.invoice_products.delete({
                     where: {
                         id: invoiceProduct['id'],
@@ -223,19 +301,19 @@ export async function DELETE(req){
                     }
                 });
                 const deleteInvoice = await prisma.invoices.delete({
-                        where: {
-                            id: parseInt(invoice_id),
-                            user_id: parseInt(id)
-                        }
+                    where: {
+                        id: parseInt(invoice_id),
+                        user_id: parseInt(id)
+                    }
                 });
                 const updateProduct = await prisma.products.update({
-                        where: {
-                            id: product['id'],
-                            user_id: parseInt(id)
-                        },
-                        data: {
-                            unit: totalProduct.toString()
-                        }
+                    where: {
+                        id: product['id'],
+                        user_id: parseInt(id)
+                    },
+                    data: {
+                        unit: totalProduct.toString()
+                    }
                 });
 
                 return {deleteInvoiceProduct, deleteInvoice, updateProduct};
@@ -243,7 +321,7 @@ export async function DELETE(req){
 
             return NextResponse.json({status: "Success", data: result}, {status: 200});
         }
-    }catch (e) {
+    } catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
     }
 }
