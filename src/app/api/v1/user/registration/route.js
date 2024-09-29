@@ -9,11 +9,12 @@ export async function POST(req){
         reqBody.password = await bcrypt.hash(password, 10);
         reqBody.otp="0";
         const prisma = new PrismaClient();
+        const startTime = new Date();
         const result = await prisma.users.create({
             data: reqBody
-        })
-
-        return NextResponse.json({status: "success", data: result}, {status: 201});
+        });
+        const executionTime = new Date() - startTime;
+        return NextResponse.json({status: "success", data: result, execution_time:`${executionTime}ms`}, {status: 201});
     }catch (e) {
         return NextResponse.json({status: "failed", data: e.message}, {status: 500});
     }

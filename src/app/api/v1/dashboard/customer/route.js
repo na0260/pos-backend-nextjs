@@ -7,13 +7,14 @@ export async function GET(){
         const headerList = headers();
         const id = headerList.get("id");
         const prisma = new PrismaClient();
+        const startTime = new Date();
         const customers = await prisma.customers.findMany({
             where:{
                 user_id: parseInt(id)
             }
-        })
-
-        return NextResponse.json({status: "Success", data: customers}, {status: 200});
+        });
+        const executionTime = new Date() - startTime;
+        return NextResponse.json({status: "Success", data: customers, execution_time:`${executionTime}ms`}, {status: 200});
 
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
@@ -27,11 +28,12 @@ export async function POST(req){
         const reqBody = await req.json();
         reqBody.user_id = parseInt(id);
         const prisma = new PrismaClient();
+        const startTime = new Date();
         const result = await prisma.customers.create({
             data: reqBody
-        })
-
-        return NextResponse.json({status: "Success", data: result}, {status: 201});
+        });
+        const executionTime = new Date() - startTime;
+        return NextResponse.json({status: "Success", data: result, execution_time:`${executionTime}ms`}, {status: 201});
 
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
@@ -46,15 +48,16 @@ export async function PUT(req){
         const {searchParams} = new URL(req.url);
         const customerId = searchParams.get("cus_id");
         const prisma = new PrismaClient();
+        const startTime = new Date();
         const result = await prisma.customers.update({
             where:{
                 id: parseInt(customerId),
                 user_id: parseInt(id)
             },
             data: reqBody
-        })
-
-        return NextResponse.json({status: "Success", data: result}, {status: 200});
+        });
+        const executionTime = new Date() - startTime;
+        return NextResponse.json({status: "Success", data: result, execution_time:`${executionTime}ms`}, {status: 200});
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
     }
@@ -67,17 +70,18 @@ export async function PATCH(req){
         const {searchParams} = new URL(req.url);
         const customerId = searchParams.get("cus_id");
         const prisma = new PrismaClient();
+        const startTime = new Date();
         const result = await prisma.customers.findUnique({
             where:{
                 id: parseInt(customerId),
                 user_id: parseInt(id)
             }
         })
-
+        const executionTime = new Date() - startTime;
         if (!result){
-            return NextResponse.json({status: "Failed", data: "Customer not found"}, {status: 404});
+            return NextResponse.json({status: "Failed", data: "Customer not found", execution_time:`${executionTime}ms`}, {status: 404});
         }else {
-            return NextResponse.json({status: "Success", data: result}, {status: 200});
+            return NextResponse.json({status: "Success", data: result, execution_time:`${executionTime}ms`}, {status: 200});
         }
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
@@ -90,14 +94,15 @@ export async function DELETE(req){
         const {searchParams} = new URL(req.url);
         const customerId = searchParams.get("cus_id");
         const prisma = new PrismaClient();
+        const startTime = new Date();
         const result = await prisma.customers.delete({
             where:{
                 id: parseInt(customerId),
                 user_id: parseInt(id)
             }
-        })
-
-        return NextResponse.json({status: "Success", data: result}, {status: 200});
+        });
+        const executionTime = new Date() - startTime;
+        return NextResponse.json({status: "Success", data: result, execution_time:`${executionTime}ms`}, {status: 200});
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
     }

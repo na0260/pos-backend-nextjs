@@ -6,9 +6,10 @@ export async function GET(req){
     try {
         const headerList = headers();
         const id = headerList.get("id");
-        const prisma = new PrismaClient();
         const {searchParams} = new URL(req.url);
         const categoryId = searchParams.get("cat_id");
+        const prisma = new PrismaClient();
+        const startTime = new Date();
         if (categoryId){
             const category = await prisma.categories.findUnique({
                 where:{
@@ -25,8 +26,8 @@ export async function GET(req){
                         category_id: parseInt(categoryId)
                     }
                 });
-
-                return NextResponse.json({status: "Success", data: products}, {status: 200});
+                const executionTime = new Date() - startTime;
+                return NextResponse.json({status: "Success", data: products, execution_time:`${executionTime}ms`}, {status: 200});
             }
         }else {
             const products = await prisma.products.findMany({
@@ -34,8 +35,8 @@ export async function GET(req){
                     user_id: parseInt(id)
                 }
             });
-
-            return NextResponse.json({status: "Success", data: products}, {status: 200});
+            const executionTime = new Date() - startTime;
+            return NextResponse.json({status: "Success", data: products, execution_time:`${executionTime}ms`}, {status: 200});
         }
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
@@ -49,6 +50,7 @@ export async function POST(req){
         const reqBody = await req.json();
         reqBody.user_id = parseInt(id);
         const prisma = new PrismaClient();
+        const startTime = new Date();
         const category = await prisma.categories.findUnique({
             where:{
                 id: reqBody.category_id,
@@ -61,8 +63,8 @@ export async function POST(req){
             const result = await prisma.products.create({
                 data: reqBody
             });
-
-            return NextResponse.json({status: "Success", data: result}, {status: 201});
+            const executionTime = new Date() - startTime;
+            return NextResponse.json({status: "Success", data: result, execution_time:`${executionTime}ms`}, {status: 201});
         }
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
@@ -78,6 +80,7 @@ export async function PUT(req){
         const {searchParams} = new URL(req.url);
         const productId = searchParams.get("pro_id");
         const prisma = new PrismaClient();
+        const startTime = new Date();
         const category = await prisma.categories.findUnique({
             where:{
                 id: reqBody.category_id,
@@ -94,8 +97,8 @@ export async function PUT(req){
                 },
                 data: reqBody
             });
-
-            return NextResponse.json({status: "Success", data: result}, {status: 200});
+            const executionTime = new Date() - startTime;
+            return NextResponse.json({status: "Success", data: result, execution_time:`${executionTime}ms`}, {status: 200});
         }
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
@@ -109,17 +112,18 @@ export async function PATCH(req){
         const {searchParams} = new URL(req.url);
         const productId = searchParams.get("pro_id");
         const prisma = new PrismaClient();
+        const startTime = new Date();
         const result = await prisma.products.findUnique({
             where:{
                 id: parseInt(productId),
                 user_id: parseInt(id)
             }
         });
-
+        const executionTime = new Date() - startTime;
         if (!result) {
-            return NextResponse.json({status: "Failed", data: "Product not found"}, {status: 404});
+            return NextResponse.json({status: "Failed", data: "Product not found", execution_time:`${executionTime}ms`}, {status: 404});
         }else {
-            return NextResponse.json({status: "Success", data: result}, {status: 200});
+            return NextResponse.json({status: "Success", data: result, execution_time:`${executionTime}ms`}, {status: 200});
         }
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
@@ -132,14 +136,15 @@ export async function DELETE(req){
         const {searchParams} = new URL(req.url);
         const productId = searchParams.get("pro_id");
         const prisma = new PrismaClient();
+        const startTime = new Date();
         const result = await prisma.products.delete({
             where:{
                 id: parseInt(productId),
                 user_id: parseInt(id)
             }
         });
-
-        return NextResponse.json({status: "Success", data: result}, {status: 200});
+        const executionTime = new Date() - startTime;
+        return NextResponse.json({status: "Success", data: result, execution_time:`${executionTime}ms`}, {status: 200});
     }catch (e) {
         return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
     }
