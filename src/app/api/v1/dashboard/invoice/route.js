@@ -263,6 +263,47 @@ export async function PUT(req) {
     }
 }
 
+export async function PATCH(req) {
+    try {
+        const headerList = headers();
+        const id = headerList.get("id");
+        const {searchParams} = new URL(req.url);
+        const invoice_id = searchParams.get("inv_id");
+        const prisma = new PrismaClient();
+        const result = await prisma.invoices.findUnique({
+            where: {
+                id: parseInt(invoice_id),
+                user_id: parseInt(id)
+            },
+            select: {
+                id: true,
+                total: true,
+                discount: true,
+                vat: true,
+                payable: true,
+                customer_id: true,
+                invoice_products: {
+                    select: {
+                        qty: true,
+                        products: {
+                            select: {
+                                name: true,
+                                unit: true,
+                                price: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        return NextResponse.json({status: "Success", data: result}, {status: 200});
+
+    } catch (e) {
+        return NextResponse.json({status: "Failed", data: e.message}, {status: 500});
+    }
+}
+
 export async function DELETE(req) {
     try {
         const headerList = headers();
